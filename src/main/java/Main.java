@@ -38,6 +38,8 @@ public class Main {
                     .setURI(jsonObject.get("git_url").getAsString())
                     .setDirectory(new File(jsonObject.get("name").getAsString()))
                     .call();
+            File tmpDir = new File(jsonObject.get("name").getAsString() + File.pathSeparator + "pom.xml");
+            if(!tmpDir.exists()) return;
             ProcessBuilder processBuilder = new ProcessBuilder();
             processBuilder.command("cmd.exe",
                     "/c",
