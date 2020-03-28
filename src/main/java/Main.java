@@ -1,3 +1,5 @@
+package main.java;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -19,6 +21,7 @@ public class Main {
     static private String api = "https://api.github.com/search/repositories?q=test%20language:java&sort=stars&order=desc&type=repository";
     static private String libraryGroupId = "";
     private static JsonObject executeGetRequest(String apiURI) throws IOException {
+        System.out.println("Start fetching all the repo according to query...");
         URL url = new URL(apiURI);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
@@ -29,17 +32,26 @@ public class Main {
             sb.append(line);
         }
         JsonObject jsonObject = new JsonParser().parse(sb.toString()).getAsJsonObject();
+        System.out.println("Fetching end.");
         return jsonObject;
     }
 
     private static void parseGitRepo(JsonObject jsonObject) {
         try {
+            System.out.println("Start cloning repo " + jsonObject.get("git_url").getAsString() + "...");
             Git.cloneRepository()
                     .setURI(jsonObject.get("git_url").getAsString())
                     .setDirectory(new File(jsonObject.get("name").getAsString()))
                     .call();
+            System.out.println("End clone.");
+            System.out.println("Checking repo is maven project or not...");
             File tmpDir = new File(jsonObject.get("name").getAsString() + File.pathSeparator + "pom.xml");
-            if(!tmpDir.exists()) return;
+            if(!tmpDir.exists()) {
+                System.out.println("Not maven project");
+                return;
+            }
+            System.out.println("Maven project.");
+            System.out.println("Start analyzing project dependency...");
             ProcessBuilder processBuilder = new ProcessBuilder();
             processBuilder.command("cmd.exe",
                     "/c",
@@ -55,8 +67,11 @@ public class Main {
                 sb.append(line);
             }
             String res = sb.toString();
+            System.out.println("End analyzing.");
             if(res.contains(libraryGroupId)) {
-                System.out.println(jsonObject.get("git_url").getAsString());
+                System.out.println(jsonObject.get("git_url").getAsString() + " has dependency on " + libraryGroupId);
+            } else {
+                System.out.println(jsonObject.get("git_url").getAsString() + " is not dependent on " + libraryGroupId);
             }
         } catch (IOException e) {
             e.printStackTrace();
