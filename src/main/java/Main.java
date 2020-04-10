@@ -9,11 +9,9 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 
 public class Main {
@@ -58,15 +56,7 @@ public class Main {
                     "cd " + jsonObject.get("name").getAsString(),
                     "mvn dependency:tree -Dincludes=" + libraryGroupId);
             Process process = processBuilder.start();
-            BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-            String line;
-            StringBuilder sb = new StringBuilder();
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            String res = sb.toString();
+            String res = getStingFromInputStream(process.getInputStream());
             System.out.println("End analyzing.");
             if(res.contains(libraryGroupId)) {
                 System.out.println(jsonObject.get("git_url").getAsString() + " has dependency on " + libraryGroupId);
@@ -84,6 +74,35 @@ public class Main {
         }
     }
 
+    private static String getStingFromInputStream(InputStream inputStream) throws IOException {
+        BufferedReader reader =
+                new BufferedReader(new InputStreamReader(inputStream));
+
+        String line;
+        StringBuilder sb = new StringBuilder();
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        return sb.toString();
+    }
+
+    private static void parseDirectDependency(JsonObject jsonObject) {
+        try {
+            String repoLink = jsonObject.get("html_url").getAsString() + "/master/pom.xml";
+            repoLink = repoLink.replace("github.com", "raw.githubusercontent.com");
+            URL url = new URL(repoLink);
+            HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
+            String res = getStingFromInputStream(httpURLConnection.getInputStream());
+            if(res.contains(libraryGroupId)) {
+                System.out.println(jsonObject.get("html_url").getAsString() + " has dependency on " + libraryGroupId);
+            } else {
+                System.out.println(jsonObject.get("html_url").getAsString() + " is not dependent on " + libraryGroupId);
+            }
+        } catch(IOException e) {
+            System.out.println(jsonObject.get("html_url").getAsString() + " is not dependent on " + libraryGroupId);
+        }
+    }
+
 
     public static void main(String args[]) {
         try {
@@ -91,7 +110,8 @@ public class Main {
             JsonArray jsonArray = jsonObject.getAsJsonArray("items");
             for(JsonElement jsonElement : jsonArray) {
                 JsonObject object = jsonElement.getAsJsonObject();
-                parseGitRepo(object);
+                // parseGitRepo(object);
+                parseDirectDependency(object);
                 break;
             }
         } catch (IOException e) {
