@@ -11,16 +11,15 @@ import org.eclipse.jgit.api.errors.TransportException;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 
 public class Main {
 
-    static private String api = "https://api.github.com/search/repositories?q=test%20language:java&sort=stars&order=desc&type=repository";
+    static private String api = "https://api.github.com/search/repositories?q=%20language:java&sort=stars&order=desc&type=repository&page=";
     static private String libraryGroupId = "";
-    private static JsonObject executeGetRequest(String apiURI) throws IOException {
+    private static JsonObject executeGetRequest(String apiURI, int pageNo) throws IOException {
         System.out.println("Start fetching all the repo according to query...");
-        URL url = new URL(apiURI);
+        URL url = new URL(apiURI + pageNo);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader((con.getInputStream())));
@@ -106,13 +105,15 @@ public class Main {
 
     public static void main(String args[]) {
         try {
-            JsonObject jsonObject = executeGetRequest(api);
-            JsonArray jsonArray = jsonObject.getAsJsonArray("items");
-            for(JsonElement jsonElement : jsonArray) {
-                JsonObject object = jsonElement.getAsJsonObject();
-                // parseGitRepo(object);
-                parseDirectDependency(object);
-                break;
+            for(int i = 1;;++i) {
+                JsonObject jsonObject = executeGetRequest(api, i);
+                JsonArray jsonArray = jsonObject.getAsJsonArray("items");
+                if(jsonArray.size() == 0) break;
+                for (JsonElement jsonElement : jsonArray) {
+                    JsonObject object = jsonElement.getAsJsonObject();
+                    // parseGitRepo(object);
+                    parseDirectDependency(object);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
