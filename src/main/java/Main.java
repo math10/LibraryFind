@@ -12,16 +12,24 @@ import org.eclipse.jgit.api.errors.TransportException;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class Main {
 
-    static private String api = "https://api.github.com/search/repositories?q=%20language:java&sort=stars&order=desc&type=repository&page=";
-    static private String libraryGroupId = "";
-    private static JsonObject executeGetRequest(String apiURI, int pageNo) throws IOException {
+    static private String api = "https://api.github.com/search/repositories?q=%s+language:java+created:%s..%s&sort=stars&order=desc&type=repository&page=%s";
+    static private String libraryGroupId = "test";
+    static private String key = "test";
+    private static JsonObject executeGetRequest(String apiURI, int pageNo, Date start, Date end) throws IOException {
         System.out.println("Start fetching all the repo according to query...");
-        URL url = new URL(apiURI + pageNo);
+        SimpleDateFormat DateFor = new SimpleDateFormat("yyyy-MM-dd");
+        String query = String.format(apiURI, key, DateFor.format(start), DateFor.format(end), pageNo);
+        System.out.println("Query String: " + query);
+        URL url = new URL(query);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
+        // con.setRequestProperty("Authorization", "token my_access_token");
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader((con.getInputStream())));
         String line;
         StringBuilder sb = new StringBuilder();
@@ -93,7 +101,7 @@ public class Main {
             HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
             String res = getStingFromInputStream(httpURLConnection.getInputStream());
             if(res.contains(libraryGroupId)) {
-                System.out.println(jsonObject.get("html_url").getAsString() + " has dependency on " + libraryGroupId);
+                System.err.println(jsonObject.get("html_url").getAsString() + " has dependency on " + libraryGroupId);
             } else {
                 System.out.println(jsonObject.get("html_url").getAsString() + " is not dependent on " + libraryGroupId);
             }
@@ -105,15 +113,27 @@ public class Main {
 
     public static void main(String args[]) {
         try {
-            for(int i = 1;;++i) {
-                JsonObject jsonObject = executeGetRequest(api, i);
-                JsonArray jsonArray = jsonObject.getAsJsonArray("items");
-                if(jsonArray.size() == 0) break;
-                for (JsonElement jsonElement : jsonArray) {
-                    JsonObject object = jsonElement.getAsJsonObject();
-                    // parseGitRepo(object);
-                    parseDirectDependency(object);
+            Date end = new Date();
+            boolean flag = true;
+            while(flag) {
+                flag = false;
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(end);
+                cal.add(Calendar.MONTH, -1);
+                Date start = cal.getTime();
+                for (int i = 1; ; ++i) {
+                    JsonObject jsonObject = executeGetRequest(api, i, start, end);
+                    JsonArray jsonArray = jsonObject.getAsJsonArray("items");
+                    if (jsonArray.size() == 0) break;
+                    flag = true;
+                    for (JsonElement jsonElement : jsonArray) {
+                        JsonObject object = jsonElement.getAsJsonObject();
+                        // parseGitRepo(object);
+                        parseDirectDependency(object);
+                    }
                 }
+                cal.add(Calendar.DATE, -1);
+                end = cal.getTime();
             }
         } catch (IOException e) {
             e.printStackTrace();
