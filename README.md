@@ -8,6 +8,7 @@ Run `mvn compile`
 Run `mvn exec:java`
 
 #Limits
+
 https://developer.github.com/v3/#rate-limiting
 
 With this code you can only request 60 times per minute
